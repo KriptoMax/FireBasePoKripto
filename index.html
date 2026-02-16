@@ -8,6 +8,27 @@
   <h1>Hello, World!</h1>
   <!-- Подключение библиотек Firebase -->
 <script type="module">
+  // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDBuAkXAyQUA_rnHVLX7jJ8Nkf1nPi9T_g",
+  authDomain: "kriptocompany-75fca.firebaseapp.com",
+  projectId: "kriptocompany-75fca",
+  storageBucket: "kriptocompany-75fca.firebasestorage.app",
+  messagingSenderId: "1093847911427",
+  appId: "1:1093847911427:web:13b9847675f4e2d84a1236",
+  measurementId: "G-D1B9MHTQQ7"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
   import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
