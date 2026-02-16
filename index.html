@@ -1,0 +1,41 @@
+<!DOSTYPE>
+<html>
+  <head>
+    <title>Kripto</title>
+    
+  </head>
+<body>
+  <h1>Hello, World!</h1>
+  <!-- Подключение библиотек Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "ВАШ_API_KEY",
+    authDomain: "ВАШ_ПРОЕКТ.firebaseapp.com",
+    projectId: "ВАШ_ПРОЕКТ",
+    storageBucket: "ВАШ_ПРОЕКТ.appspot.com",
+    messagingSenderId: "ВАШ_СЕНДЕР_ID",
+    appId: "ВАШ_APP_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  async function sendData() {
+    const name = document.getElementById("name").value;
+    const email = document.getElementById("email").value;
+
+    await addDoc(collection(db, "requests"), { name, email });
+    alert("Данные отправлены!");
+  }
+</script>
+
+<form>
+  <input type="text" id="name" placeholder="Имя" required>
+  <input type="email" id="email" placeholder="Email" required>
+  <button type="button" onclick="sendData()">Отправить</button>
+</form>
+</body>
+</html>
