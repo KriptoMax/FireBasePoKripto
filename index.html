@@ -1,62 +1,54 @@
-<!DOSTYPE>
+<!DOCTYPE html>
 <html>
-  <head>
-    <title>Kripto</title>
-    
-  </head>
+<head>
+  <title>Kripto</title>
+</head>
 <body>
-  <h1>Hello, World!</h1>
-  <!-- Подключение библиотек Firebase -->
-<script type="module">
-  // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDBuAkXAyQUA_rnHVLX7jJ8Nkf1nPi9T_g",
-  authDomain: "kriptocompany-75fca.firebaseapp.com",
-  projectId: "kriptocompany-75fca",
-  storageBucket: "kriptocompany-75fca.firebasestorage.app",
-  messagingSenderId: "1093847911427",
-  appId: "1:1093847911427:web:13b9847675f4e2d84a1236",
-  measurementId: "G-D1B9MHTQQ7"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
-  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "ВАШ_API_KEY",
-    authDomain: "ВАШ_ПРОЕКТ.firebaseapp.com",
-    projectId: "ВАШ_ПРОЕКТ",
-    storageBucket: "ВАШ_ПРОЕКТ.appspot.com",
-    messagingSenderId: "ВАШ_СЕНДЕР_ID",
-    appId: "ВАШ_APP_ID"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  async function sendData() {
-    const name = document.getElementById("name").value;
-    const email = document.getElementById("email").value;
-
-    await addDoc(collection(db, "requests"), { name, email });
-    alert("Данные отправлены!");
-  }
-</script>
+<h1>Firebase Test</h1>
 
 <form>
   <input type="text" id="name" placeholder="Имя" required>
   <input type="email" id="email" placeholder="Email" required>
   <button type="button" onclick="sendData()">Отправить</button>
 </form>
+
+<script type="module">
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "ТВОЙ_API_KEY",
+    authDomain: "ТВОЙ_ПРОЕКТ.firebaseapp.com",
+    projectId: "ТВОЙ_ПРОЕКТ",
+    storageBucket: "ТВОЙ_ПРОЕКТ.appspot.com",
+    messagingSenderId: "ТВОЙ_SENDER_ID",
+    appId: "ТВОЙ_APP_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.sendData = async function () {
+    const name = document.getElementById("name").value;
+    const email = document.getElementById("email").value;
+
+    try {
+      await addDoc(collection(db, "requests"), {
+        name: name,
+        email: email,
+        createdAt: new Date()
+      });
+
+      alert("Данные отправлены!");
+    } catch (error) {
+      console.error("Ошибка:", error);
+      alert("Ошибка отправки");
+    }
+  };
+
+</script>
+
 </body>
 </html>
