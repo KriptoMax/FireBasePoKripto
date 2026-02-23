@@ -156,19 +156,22 @@
     <script>
         // Firebase конфигурация
         const firebaseConfig = {
-            apiKey: "AIzaSyI6gHd8tXaFc_4A-rp5s2Kq3i26S1fksHR",
-            authDomain: "google-oauth2.googleapis.com",
-            projectId: "google-oauth2",
-            storageBucket: "googleapis.com",
-            messagingSenderId: "12345678901234567890123456789",
-            appId: "1:67874540000:web:bd1df72b9ce14df39a21"
+          apiKey: "AIzaSyDBuAkXAyQUA_rnHVLX7jJ8Nkf1nPi9T_g",
+          authDomain: "kriptocompany-75fca.firebaseapp.com",
+          projectId: "kriptocompany-75fca",
+          storageBucket: "kriptocompany-75fca.firebasestorage.app",
+          messagingSenderId: "1093847911427",
+          appId: "1:1093847911427:web:13b9847675f4e2d84a1236",
+          measurementId: "G-D1B9MHTQQ7"
         };
 
         // Инициализация Firebase
-        const app = firebase.initializeApp(firebaseConfig);
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
         const auth = firebase.auth();
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
+        const app = initializeApp(firebaseConfig);
 
         // DOM элементы
         const loginBtn = document.getElementById("loginBtn");
