@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Базовый проект с Firebase Auth</title>
+    <title>Базовый проект с Firebase Auth и загрузкой фото</title>
     <style>
         body {
             font-family: 'Inter', sans-serif; 
@@ -54,11 +54,16 @@
             padding: 10px 20px;
             border-radius: 8px;
             font-size: 14px;
+            margin: 5px 0;
         }
         button:hover {
             background: #74b9ff;
         }
-        input[type="text"], input[type="email"] { 
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        input[type="text"], input[type="email"], input[type="file"] { 
             width: 100%; 
             padding: 12px; 
             border-radius: 8px; 
@@ -90,6 +95,13 @@
         .post-body { 
             margin-bottom: 10px; 
         }
+        .post-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
         .like-btn { 
             cursor: pointer; 
             border: none; 
@@ -118,9 +130,67 @@
         #messageForm {
             display: none;
         }
+        .image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: none;
+        }
+        .upload-progress {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: none;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #0984e3;
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            overflow: auto;
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            margin-top: 20px;
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #bbb;
+        }
     </style>
 </head>
 <body>
+    <!-- Модальное окно для просмотра изображений -->
+    <div id="imageModal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modalImage">
+    </div>
+
     <!-- Секция авторизации -->
     <div class="container">
         <div id="authorSection">
@@ -138,8 +208,20 @@
         <h3>Создать запись</h3>
         <input type="text" id="name" placeholder="Имя" readonly>
         <input type="email" id="email" placeholder="Email" readonly>
+        
+        <!-- Поле для загрузки изображения -->
+        <input type="file" id="imageInput" accept="image/*">
+        <div class="image-preview" id="imagePreview">
+            <img id="preview" class="image-preview" alt="Preview">
+        </div>
+        
+        <!-- Прогресс загрузки -->
+        <div class="upload-progress" id="uploadProgress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
         <input type="text" id="content" placeholder="Текст сообщения">
-        <button id="submitBtn">Отправить</button>
+        <button id="submitBtn" disabled>Отправить</button>
     </div>
 
     <!-- Лента сообщений -->
@@ -152,191 +234,317 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
 
     <script>
-    // Firebase конфигурация (ваша, она правильная)
-    const firebaseConfig = {
-        apiKey: "AIzaSyDBuAkXAyQUA_rnHVLX7jJ8Nkf1nPi9T_g",
-        authDomain: "kriptocompany-75fca.firebaseapp.com",
-        projectId: "kriptocompany-75fca",
-        storageBucket: "kriptocompany-75fca.firebasestorage.app",
-        messagingSenderId: "1093847911427",
-        appId: "1:1093847911427:web:13b9847675f4e2d84a1236",
-        measurementId: "G-D1B9MHTQQ7"
-    };
+        // Firebase конфигурация
+        const firebaseConfig = {
+            apiKey: "AIzaSyDBuAkXAyQUA_rnHVLX7jJ8Nkf1nPi9T_g",
+            authDomain: "kriptocompany-75fca.firebaseapp.com",
+            projectId: "kriptocompany-75fca",
+            storageBucket: "kriptocompany-75fca.firebasestorage.app",
+            messagingSenderId: "1093847911427",
+            appId: "1:1093847911427:web:13b9847675f4e2d84a1236",
+            measurementId: "G-D1B9MHTQQ7"
+        };
 
-    // Инициализация Firebase (ИСПРАВЛЕНО)
-    firebase.initializeApp(firebaseConfig);  // Убрали const app = initializeApp...
-    
-    // Получаем сервисы
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    const provider = new firebase.auth.GoogleAuthProvider();
-
-    // DOM элементы
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const userInfo = document.getElementById("userInfo");
-    const messageForm = document.getElementById("messageForm");
-    const submitBtn = document.getElementById("submitBtn");
-    const contentInput = document.getElementById("content");
-    const nameInput = document.getElementById("name");
-    const emailInput = document.getElementById("email");
-    const userPhoto = document.getElementById("userPhoto");
-    const userName = document.getElementById("userName");
-    const messagesDiv = document.getElementById("messages");
-
-    // Вход через Google
-    loginBtn.onclick = () => {
-        auth.signInWithPopup(provider)
-            .then((result) => {
-                console.log("Успешный вход:", result.user.email);
-            })
-            .catch(error => {
-                console.error("Ошибка входа:", error);
-                alert("Ошибка входа: " + error.message);
-            });
-    };
-
-    // Выход
-    logoutBtn.onclick = () => {
-        auth.signOut()
-            .then(() => {
-                console.log("Выход выполнен");
-            })
-            .catch(error => {
-                console.error("Ошибка выхода:", error);
-            });
-    };
-
-    // Отслеживание состояния аутентификации
-    auth.onAuthStateChanged((user) => {
-        console.log("Auth state changed:", user ? "Вошел" : "Вышел");
+        // Инициализация Firebase
+        firebase.initializeApp(firebaseConfig);
         
-        if (user) {
-            // Пользователь вошел
-            loginBtn.style.display = "none";
-            userInfo.style.display = "flex";
-            messageForm.style.display = "block";
-            
-            // Заполняем данные пользователя
-            userName.innerText = user.displayName || "Без имени";
-            userPhoto.src = user.photoURL || "https://via.placeholder.com/40";
-            nameInput.value = user.displayName || "";
-            emailInput.value = user.email || "";
-        } else {
-            // Пользователь вышел
-            loginBtn.style.display = "block";
-            userInfo.style.display = "none";
-            messageForm.style.display = "none";
-        }
-    });
+        // Получаем сервисы
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+        const provider = new firebase.auth.GoogleAuthProvider();
 
-    // Отправка сообщения
-    submitBtn.onclick = async () => {
-        const content = contentInput.value.trim();
+        // DOM элементы
+        const loginBtn = document.getElementById("loginBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
+        const userInfo = document.getElementById("userInfo");
+        const messageForm = document.getElementById("messageForm");
+        const submitBtn = document.getElementById("submitBtn");
+        const contentInput = document.getElementById("content");
+        const nameInput = document.getElementById("name");
+        const emailInput = document.getElementById("email");
+        const userPhoto = document.getElementById("userPhoto");
+        const userName = document.getElementById("userName");
+        const messagesDiv = document.getElementById("messages");
+        const imageInput = document.getElementById("imageInput");
+        const preview = document.getElementById("preview");
+        const imagePreview = document.getElementById("imagePreview");
+        const uploadProgress = document.getElementById("uploadProgress");
+        const progressBar = document.getElementById("progressBar");
         
-        if (!content) {
-            alert("Введите текст сообщения");
-            return;
-        }
+        // Модальное окно
+        const modal = document.getElementById("imageModal");
+        const modalImg = document.getElementById("modalImage");
+        const closeBtn = document.getElementsByClassName("close")[0];
 
-        const user = auth.currentUser;
-        if (!user) {
-            alert("Необходимо войти в систему");
-            return;
-        }
+        // Переменная для хранения URL загруженного изображения
+        let uploadedImageUrl = null;
 
-        try {
-            await db.collection("requests").add({
-                name: user.displayName,
-                email: user.email,
-                photo: user.photoURL,
-                text: content,
-                likes: 0,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
+        // Предпросмотр изображения
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    preview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                imagePreview.style.display = 'none';
+                preview.src = '';
+            }
+        });
+
+        // Вход через Google
+        loginBtn.onclick = () => {
+            auth.signInWithPopup(provider)
+                .then((result) => {
+                    console.log("Успешный вход:", result.user.email);
+                })
+                .catch(error => {
+                    console.error("Ошибка входа:", error);
+                    alert("Ошибка входа: " + error.message);
+                });
+        };
+
+        // Выход
+        logoutBtn.onclick = () => {
+            auth.signOut()
+                .then(() => {
+                    console.log("Выход выполнен");
+                })
+                .catch(error => {
+                    console.error("Ошибка выхода:", error);
+                });
+        };
+
+        // Отслеживание состояния аутентификации
+        auth.onAuthStateChanged((user) => {
+            console.log("Auth state changed:", user ? "Вошел" : "Вышел");
             
-            contentInput.value = ''; // Очищаем поле
-            console.log("Сообщение отправлено успешно");
-        } catch (e) {
-            console.error("Ошибка отправки:", e);
-            alert("Ошибка безопасности! Проверьте правильность данных: " + e.message);
-        }
-    };
+            if (user) {
+                loginBtn.style.display = "none";
+                userInfo.style.display = "flex";
+                messageForm.style.display = "block";
+                submitBtn.disabled = false;
+                
+                userName.innerText = user.displayName || "Без имени";
+                userPhoto.src = user.photoURL || "https://via.placeholder.com/40";
+                nameInput.value = user.displayName || "";
+                emailInput.value = user.email || "";
+            } else {
+                loginBtn.style.display = "block";
+                userInfo.style.display = "none";
+                messageForm.style.display = "none";
+                submitBtn.disabled = true;
+                uploadedImageUrl = null;
+                imageInput.value = '';
+                imagePreview.style.display = 'none';
+            }
+        });
 
-    // Загрузка сообщений в реальном времени
-    db.collection("requests")
-        .orderBy("timestamp", "desc")
-        .onSnapshot((snapshot) => {
-            console.log("Получено сообщений:", snapshot.size);
-            messagesDiv.innerHTML = "";
+        // Функция загрузки изображения в Storage
+        async function uploadImage(file) {
+            if (!file) return null;
             
-            if (snapshot.empty) {
-                messagesDiv.innerHTML = "<p>Пока нет сообщений</p>";
+            // Создаем уникальное имя файла
+            const timestamp = Date.now();
+            const fileName = `${auth.currentUser.uid}_${timestamp}_${file.name}`;
+            const storageRef = storage.ref(`images/${fileName}`);
+            
+            // Показываем прогресс бар
+            uploadProgress.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            try {
+                // Загружаем файл с отслеживанием прогресса
+                const uploadTask = storageRef.put(file);
+                
+                return new Promise((resolve, reject) => {
+                    uploadTask.on('state_changed',
+                        (snapshot) => {
+                            // Прогресс загрузки
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            progressBar.style.width = progress + '%';
+                            console.log('Загрузка: ' + progress + '%');
+                        },
+                        (error) => {
+                            // Ошибка
+                            console.error("Ошибка загрузки:", error);
+                            uploadProgress.style.display = 'none';
+                            reject(error);
+                        },
+                        async () => {
+                            // Успешно загружено - получаем URL
+                            const downloadUrl = await uploadTask.snapshot.ref.getDownloadURL();
+                            uploadProgress.style.display = 'none';
+                            resolve(downloadUrl);
+                        }
+                    );
+                });
+            } catch (error) {
+                console.error("Ошибка при загрузке:", error);
+                uploadProgress.style.display = 'none';
+                throw error;
+            }
+        }
+
+        // Отправка сообщения с изображением
+        submitBtn.onclick = async () => {
+            const content = contentInput.value.trim();
+            const imageFile = imageInput.files[0];
+            
+            if (!content && !imageFile) {
+                alert("Введите текст или выберите изображение");
                 return;
             }
-            
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const post = document.createElement("div");
-                post.className = "post";
+
+            const user = auth.currentUser;
+            if (!user) {
+                alert("Необходимо войти в систему");
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Отправка...';
                 
-                // Форматирование времени
-                let timeText = "только что";
-                if (data.timestamp) {
-                    const date = data.timestamp.toDate();
-                    timeText = date.toLocaleTimeString("ru-RU", {
-                        hour: '2-digit', 
-                        minute: '2-digit'
-                    });
+                let imageUrl = null;
+                
+                // Загружаем изображение, если выбрано
+                if (imageFile) {
+                    imageUrl = await uploadImage(imageFile);
                 }
                 
-                post.innerHTML = `
-                    <div class="post-header">
-                        <img src="${data.photo || 'https://via.placeholder.com/30'}" alt="avatar">
-                        <strong>${data.name || 'Аноним'}</strong>
-                        <span class="time">${timeText}</span>
-                    </div>
-                    <div class="post-body">
-                        <p>${data.text || ''}</p>
-                    </div>
-                    <button class="like-btn" data-id="${doc.id}" data-likes="${data.likes || 0}">
-                        ❤️ ${data.likes || 0}
-                    </button>
-                `;
+                // Создаем документ в Firestore
+                await db.collection("requests").add({
+                    name: user.displayName,
+                    email: user.email,
+                    photo: user.photoURL,
+                    text: content || '',
+                    imageUrl: imageUrl, // Сохраняем URL изображения
+                    likes: 0,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
                 
-                messagesDiv.appendChild(post);
-            });
+                // Очищаем форму
+                contentInput.value = '';
+                imageInput.value = '';
+                imagePreview.style.display = 'none';
+                preview.src = '';
+                uploadedImageUrl = null;
+                
+                console.log("Сообщение отправлено успешно");
+            } catch (e) {
+                console.error("Ошибка отправки:", e);
+                alert("Ошибка: " + e.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Отправить';
+            }
+        };
 
-            // Добавляем обработчики для кнопок лайков
-            document.querySelectorAll('.like-btn').forEach(btn => {
-                btn.onclick = async (e) => {
-                    e.preventDefault();
+        // Загрузка сообщений в реальном времени
+        db.collection("requests")
+            .orderBy("timestamp", "desc")
+            .onSnapshot((snapshot) => {
+                console.log("Получено сообщений:", snapshot.size);
+                messagesDiv.innerHTML = "";
+                
+                if (snapshot.empty) {
+                    messagesDiv.innerHTML = "<p>Пока нет сообщений</p>";
+                    return;
+                }
+                
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const post = document.createElement("div");
+                    post.className = "post";
                     
-                    if (!auth.currentUser) {
-                        alert("Войдите, чтобы ставить лайки");
-                        return;
-                    }
-
-                    const id = btn.dataset.id;
-                    const currentLikes = parseInt(btn.dataset.likes) || 0;
-                    
-                    try {
-                        await db.collection("requests").doc(id).update({
-                            likes: currentLikes + 1
+                    // Форматирование времени
+                    let timeText = "только что";
+                    if (data.timestamp) {
+                        const date = data.timestamp.toDate();
+                        timeText = date.toLocaleTimeString("ru-RU", {
+                            hour: '2-digit', 
+                            minute: '2-digit'
                         });
-                        console.log("Лайк поставлен");
-                    } catch (error) {
-                        console.error("Ошибка при лайке:", error);
-                        alert("Ошибка: " + error.message);
                     }
-                };
+                    
+                    // Создаем HTML для поста
+                    let imageHtml = '';
+                    if (data.imageUrl) {
+                        imageHtml = `<img src="${data.imageUrl}" class="post-image" onclick="openModal('${data.imageUrl}')">`;
+                    }
+                    
+                    post.innerHTML = `
+                        <div class="post-header">
+                            <img src="${data.photo || 'https://via.placeholder.com/30'}" alt="avatar">
+                            <strong>${data.name || 'Аноним'}</strong>
+                            <span class="time">${timeText}</span>
+                        </div>
+                        <div class="post-body">
+                            <p>${data.text || ''}</p>
+                            ${imageHtml}
+                        </div>
+                        <button class="like-btn" data-id="${doc.id}" data-likes="${data.likes || 0}">
+                            ❤️ ${data.likes || 0}
+                        </button>
+                    `;
+                    
+                    messagesDiv.appendChild(post);
+                });
+
+                // Добавляем обработчики для кнопок лайков
+                document.querySelectorAll('.like-btn').forEach(btn => {
+                    btn.onclick = async (e) => {
+                        e.preventDefault();
+                        
+                        if (!auth.currentUser) {
+                            alert("Войдите, чтобы ставить лайки");
+                            return;
+                        }
+
+                        const id = btn.dataset.id;
+                        const currentLikes = parseInt(btn.dataset.likes) || 0;
+                        
+                        try {
+                            await db.collection("requests").doc(id).update({
+                                likes: currentLikes + 1
+                            });
+                            console.log("Лайк поставлен");
+                        } catch (error) {
+                            console.error("Ошибка при лайке:", error);
+                            alert("Ошибка: " + error.message);
+                        }
+                    };
+                });
+            }, (error) => {
+                console.error("Ошибка загрузки сообщений:", error);
+                messagesDiv.innerHTML = "<p>Ошибка загрузки сообщений</p>";
             });
-        }, (error) => {
-            console.error("Ошибка загрузки сообщений:", error);
-            messagesDiv.innerHTML = "<p>Ошибка загрузки сообщений</p>";
-        });
-</script>
+
+        // Функция для открытия модального окна
+        window.openModal = (imageUrl) => {
+            modal.style.display = "block";
+            modalImg.src = imageUrl;
+        };
+
+        // Закрытие модального окна
+        closeBtn.onclick = () => {
+            modal.style.display = "none";
+        };
+
+        // Закрытие по клику вне изображения
+        window.onclick = (event) => {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        };
+    </script>
 </body>
 </html>
