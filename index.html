@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Базовый проект с Firebase Auth и загрузкой фото</title>
+    <title>Firebase проект с редактированием и удалением</title>
     <style>
         body {
             font-family: 'Inter', sans-serif; 
@@ -63,6 +63,18 @@
             background: #ccc;
             cursor: not-allowed;
         }
+        .delete-btn {
+            background: #ff4757;
+        }
+        .delete-btn:hover {
+            background: #ff6b81;
+        }
+        .edit-btn {
+            background: #00b894;
+        }
+        .edit-btn:hover {
+            background: #00cec9;
+        }
         input[type="text"], input[type="email"], input[type="file"] { 
             width: 100%; 
             padding: 12px; 
@@ -80,6 +92,7 @@
             width: 100%; 
             max-width: 500px; 
             box-sizing: border-box;
+            position: relative;
         }
         .post-header { 
             display: flex; 
@@ -102,6 +115,16 @@
             margin: 10px 0;
             cursor: pointer;
         }
+        .post-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .post-actions button {
+            flex: 1;
+            padding: 8px;
+            font-size: 12px;
+        }
         .like-btn { 
             cursor: pointer; 
             border: none; 
@@ -109,6 +132,7 @@
             padding: 5px 12px; 
             border-radius: 20px; 
             margin-top: 10px; 
+            width: auto;
         }
         .like-btn:hover {
             background: #fd79a8;
@@ -182,6 +206,41 @@
         .close:hover {
             color: #bbb;
         }
+        .edit-form {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        .confirm-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            z-index: 1001;
+            display: none;
+            max-width: 300px;
+            text-align: center;
+        }
+        .confirm-dialog button {
+            margin: 10px;
+            min-width: 80px;
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -189,6 +248,14 @@
     <div id="imageModal" class="modal">
         <span class="close">&times;</span>
         <img class="modal-content" id="modalImage">
+    </div>
+
+    <!-- Диалог подтверждения удаления -->
+    <div class="overlay" id="overlay"></div>
+    <div class="confirm-dialog" id="confirmDialog">
+        <p id="confirmMessage">Вы уверены, что хотите удалить этот пост?</p>
+        <button id="confirmYes" class="delete-btn">Да, удалить</button>
+        <button id="confirmNo">Отмена</button>
     </div>
 
     <!-- Секция авторизации -->
@@ -280,8 +347,16 @@
         const modalImg = document.getElementById("modalImage");
         const closeBtn = document.getElementsByClassName("close")[0];
 
-        // Переменная для хранения URL загруженного изображения
+        // Диалог подтверждения
+        const confirmDialog = document.getElementById("confirmDialog");
+        const overlay = document.getElementById("overlay");
+        const confirmYes = document.getElementById("confirmYes");
+        const confirmNo = document.getElementById("confirmNo");
+        const confirmMessage = document.getElementById("confirmMessage");
+
+        // Переменные для хранения состояния
         let uploadedImageUrl = null;
+        let pendingDelete = null; // Для хранения ID поста на удаление
 
         // Предпросмотр изображения
         imageInput.addEventListener('change', (e) => {
@@ -393,6 +468,138 @@
             }
         }
 
+        // Функция удаления изображения из Storage
+        async function deleteImage(imageUrl) {
+            if (!imageUrl) return;
+            
+            try {
+                // Создаем ссылку на файл из URL
+                const imageRef = storage.refFromURL(imageUrl);
+                await imageRef.delete();
+                console.log("Изображение удалено из Storage");
+            } catch (error) {
+                console.error("Ошибка при удалении изображения:", error);
+                // Не прерываем удаление поста, если не удалось удалить фото
+            }
+        }
+
+        // Функция для открытия формы редактирования
+        function showEditForm(postId, currentText, currentImageUrl) {
+            // Создаем форму редактирования, если её нет
+            let editForm = document.getElementById(`edit-form-${postId}`);
+            
+            if (!editForm) {
+                const post = document.querySelector(`[data-post-id="${postId}"]`);
+                if (!post) return;
+                
+                editForm = document.createElement('div');
+                editForm.id = `edit-form-${postId}`;
+                editForm.className = 'edit-form';
+                editForm.innerHTML = `
+                    <textarea id="edit-text-${postId}" class="edit-text" placeholder="Редактировать текст..." rows="3">${currentText}</textarea>
+                    <input type="file" id="edit-image-${postId}" accept="image/*">
+                    <div class="edit-actions">
+                        <button onclick="saveEdit('${postId}')" class="edit-btn">Сохранить</button>
+                        <button onclick="cancelEdit('${postId}')">Отмена</button>
+                    </div>
+                `;
+                post.appendChild(editForm);
+            }
+            
+            editForm.style.display = 'block';
+        }
+
+        // Функция сохранения редактирования
+        window.saveEdit = async (postId) => {
+            const newText = document.getElementById(`edit-text-${postId}`).value.trim();
+            const imageFile = document.getElementById(`edit-image-${postId}`).files[0];
+            
+            if (!newText && !imageFile) {
+                alert("Введите текст или выберите изображение");
+                return;
+            }
+
+            try {
+                let imageUrl = null;
+                
+                // Загружаем новое изображение, если выбрано
+                if (imageFile) {
+                    imageUrl = await uploadImage(imageFile);
+                }
+                
+                // Обновляем документ в Firestore
+                const updateData = {
+                    text: newText || ''
+                };
+                
+                if (imageUrl) {
+                    updateData.imageUrl = imageUrl;
+                }
+                
+                await db.collection("requests").doc(postId).update(updateData);
+                
+                // Скрываем форму редактирования
+                document.getElementById(`edit-form-${postId}`).style.display = 'none';
+                
+                console.log("Пост обновлен успешно");
+            } catch (error) {
+                console.error("Ошибка при редактировании:", error);
+                alert("Ошибка: " + error.message);
+            }
+        };
+
+        // Функция отмены редактирования
+        window.cancelEdit = (postId) => {
+            document.getElementById(`edit-form-${postId}`).style.display = 'none';
+        };
+
+        // Функция подтверждения удаления
+        window.confirmDelete = (postId, hasImage) => {
+            pendingDelete = { postId, hasImage };
+            confirmMessage.textContent = "Вы уверены, что хотите удалить этот пост?";
+            confirmDialog.style.display = 'block';
+            overlay.style.display = 'block';
+        };
+
+        // Обработчик подтверждения удаления
+        confirmYes.onclick = async () => {
+            if (!pendingDelete) return;
+            
+            const { postId, hasImage } = pendingDelete;
+            
+            try {
+                // Сначала получаем данные поста, чтобы узнать URL изображения
+                if (hasImage) {
+                    const postDoc = await db.collection("requests").doc(postId).get();
+                    const postData = postDoc.data();
+                    
+                    if (postData.imageUrl) {
+                        await deleteImage(postData.imageUrl);
+                    }
+                }
+                
+                // Удаляем документ из Firestore
+                await db.collection("requests").doc(postId).delete();
+                
+                console.log("Пост удален успешно");
+            } catch (error) {
+                console.error("Ошибка при удалении:", error);
+                alert("Ошибка: " + error.message);
+            } finally {
+                // Закрываем диалог
+                confirmDialog.style.display = 'none';
+                overlay.style.display = 'none';
+                pendingDelete = null;
+            }
+        };
+
+        // Обработчик отмены удаления
+        confirmNo.onclick = () => {
+            confirmDialog.style.display = 'none';
+            overlay.style.display = 'none';
+            pendingDelete = null;
+        };
+
         // Отправка сообщения с изображением
         submitBtn.onclick = async () => {
             const content = contentInput.value.trim();
@@ -426,8 +633,9 @@
                     email: user.email,
                     photo: user.photoURL,
                     text: content || '',
-                    imageUrl: imageUrl, // Сохраняем URL изображения
+                    imageUrl: imageUrl,
                     likes: 0,
+                    userId: user.uid, // Сохраняем ID пользователя для проверки прав
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
@@ -464,6 +672,7 @@
                     const data = doc.data();
                     const post = document.createElement("div");
                     post.className = "post";
+                    post.setAttribute("data-post-id", doc.id);
                     
                     // Форматирование времени
                     let timeText = "только что";
@@ -481,6 +690,24 @@
                         imageHtml = `<img src="${data.imageUrl}" class="post-image" onclick="openModal('${data.imageUrl}')">`;
                     }
                     
+                    // Проверяем, является ли текущий пользователь автором поста
+                    const isAuthor = auth.currentUser && data.userId === auth.currentUser.uid;
+                    
+                    // Создаем кнопки действий только для автора
+                    let actionButtons = '';
+                    if (isAuthor) {
+                        actionButtons = `
+                            <div class="post-actions">
+                                <button onclick="showEditForm('${doc.id}', '${data.text || ''}', '${data.imageUrl || ''}')" class="edit-btn">
+                                    ✏️ Редактировать
+                                </button>
+                                <button onclick="confirmDelete('${doc.id}', ${!!data.imageUrl})" class="delete-btn">
+                                    🗑️ Удалить
+                                </button>
+                            </div>
+                        `;
+                    }
+                    
                     post.innerHTML = `
                         <div class="post-header">
                             <img src="${data.photo || 'https://via.placeholder.com/30'}" alt="avatar">
@@ -494,6 +721,7 @@
                         <button class="like-btn" data-id="${doc.id}" data-likes="${data.likes || 0}">
                             ❤️ ${data.likes || 0}
                         </button>
+                        ${actionButtons}
                     `;
                     
                     messagesDiv.appendChild(post);
