@@ -247,25 +247,20 @@
     import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, doc, getDocs, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyAMMgGxN27p0FYmp-LVMmKw5KJbvFM-KhQ",
-        authDomain: "project1-c17c1.firebaseapp.com",
-        projectId: "project1-c17c1",
-        storageBucket: "project1-c17c1.firebasestorage.app",
-        messagingSenderId: "774031073336",
-        appId: "1:774031073336:web:4ecdc3ad60a52f076786cd"
-    };
+    // Firebase конфигурация (ваша)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDBuAkXAyQUA_rnHVLX7jJ8Nkf1nPi9T_g",
+            authDomain: "kriptocompany-75fca.firebaseapp.com",
+            projectId: "kriptocompany-75fca",
+            storageBucket: "kriptocompany-75fca.firebasestorage.app",
+            messagingSenderId: "1093847911427",
+            appId: "1:1093847911427:web:13b9847675f4e2d84a1236"
+        };
 
-    // Инициализация Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
-
-    // Настройка провайдера
-    provider.setCustomParameters({
-        prompt: 'select_account'
-    });
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const provider = new firebase.auth.GoogleAuthProvider();
 
     // Элементы DOM
     const loginBtn = document.getElementById('loginBtn');
