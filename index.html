@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Простой чат</title>
+    <title>Чат и лента</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -68,6 +68,7 @@
             padding: 10px;
             border-bottom: 1px solid #eee;
             cursor: pointer;
+            transition: background 0.2s;
         }
         
         .user-item:hover {
@@ -90,6 +91,7 @@
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
+            display: none;
         }
         
         .chat-header {
@@ -109,30 +111,46 @@
             background: #f9f9f9;
             border-radius: 10px;
             margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
         
         .message {
-            margin-bottom: 10px;
-            padding: 8px 12px;
-            border-radius: 10px;
-            max-width: 70%;
+            display: flex;
+            gap: 10px;
+            max-width: 80%;
         }
         
-        .sent {
+        .message.sent {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        
+        .message-content {
+            background: #e4e6eb;
+            padding: 8px 12px;
+            border-radius: 18px;
+            word-break: break-word;
+        }
+        
+        .message.sent .message-content {
             background: #0084ff;
             color: white;
-            margin-left: auto;
         }
         
-        .received {
-            background: #e4e6eb;
-            margin-right: auto;
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            align-self: flex-end;
         }
         
         .message-time {
             font-size: 10px;
             opacity: 0.7;
             margin-top: 4px;
+            text-align: right;
         }
         
         .chat-input {
@@ -187,6 +205,15 @@
             color: #999;
             padding: 30px;
         }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -213,10 +240,11 @@
     </div>
 
     <!-- Чат с выбранным пользователем -->
-    <div class="chat-section" id="chatSection" style="display: none;">
+    <div class="chat-section" id="chatSection">
         <div class="chat-header" id="chatHeader">
             <img id="currentChatAvatar" class="user-avatar" src="" alt="">
             <h3 id="currentChatName"></h3>
+            <button id="closeChatBtn" style="margin-left: auto; background: #6c757d;">✕</button>
         </div>
         
         <div class="messages" id="messages">
@@ -241,12 +269,14 @@
         </div>
     </div>
 
+    <div id="errorContainer" style="display: none;" class="error-message"></div>
+
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 
     <script>
-        // Firebase конфигурация
+        // Firebase конфигурация (ваша)
         const firebaseConfig = {
             apiKey: "AIzaSyDBuAkXAyQUA_rnHVLX7jJ8Nkf1nPi9T_g",
             authDomain: "kriptocompany-75fca.firebaseapp.com",
@@ -269,28 +299,63 @@
         const userPhoto = document.getElementById('userPhoto');
         const userName = document.getElementById('userName');
         
-        // Элементы чата
+        // Элементы пользователей
         const usersList = document.getElementById('usersList');
+        
+        // Элементы чата
         const chatSection = document.getElementById('chatSection');
         const messages = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const currentChatAvatar = document.getElementById('currentChatAvatar');
         const currentChatName = document.getElementById('currentChatName');
+        const closeChatBtn = document.getElementById('closeChatBtn');
         
         // Элементы постов
         const postInput = document.getElementById('postInput');
         const createPostBtn = document.getElementById('createPostBtn');
         const postsList = document.getElementById('postsList');
 
+        const errorContainer = document.getElementById('errorContainer');
+
         let currentUser = null;
         let currentChatUser = null;
         let unsubscribeChat = null;
+        let unsubscribeUsers = null;
+        let unsubscribePosts = null;
+
+        // Вспомогательные функции
+        function showError(message) {
+            errorContainer.textContent = message;
+            errorContainer.style.display = 'block';
+            setTimeout(() => {
+                errorContainer.style.display = 'none';
+            }, 5000);
+        }
+
+        // Сохранение пользователя в коллекцию users
+        async function saveUserToFirestore(user) {
+            if (!user) return;
+            try {
+                const userRef = db.collection('users').doc(user.uid);
+                await userRef.set({
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName || 'Пользователь',
+                    photoURL: user.photoURL || 'https://via.placeholder.com/50',
+                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                console.log('Пользователь сохранён в users');
+            } catch (error) {
+                console.error('Ошибка сохранения пользователя:', error);
+            }
+        }
 
         // Вход
         loginBtn.onclick = () => {
             auth.signInWithPopup(provider)
-                .catch(error => alert('Ошибка входа: ' + error.message));
+                .then(result => saveUserToFirestore(result.user))
+                .catch(error => showError('Ошибка входа: ' + error.message));
         };
 
         // Выход
@@ -307,9 +372,12 @@
                 userPhoto.src = user.photoURL || 'https://via.placeholder.com/40';
                 userName.textContent = user.displayName || 'Пользователь';
                 
-                // Загружаем данные
-                loadUsers();
-                loadPosts();
+                // Сохраняем пользователя в Firestore
+                saveUserToFirestore(user);
+                
+                // Загружаем пользователей и посты
+                loadUsersRealtime();
+                loadPostsRealtime();
                 
                 // Если был открыт чат, закрываем его
                 if (currentChatUser) {
@@ -329,77 +397,89 @@
                     unsubscribeChat();
                     unsubscribeChat = null;
                 }
+                if (unsubscribeUsers) {
+                    unsubscribeUsers();
+                    unsubscribeUsers = null;
+                }
+                if (unsubscribePosts) {
+                    unsubscribePosts();
+                    unsubscribePosts = null;
+                }
             }
         });
 
-        // Загрузка списка пользователей
-        async function loadUsers() {
-            try {
-                const snapshot = await db.collection('requests').get();
-                const users = new Map();
-                
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    if (data.userId && data.userId !== currentUser?.uid) {
-                        users.set(data.userId, {
-                            id: data.userId,
-                            name: data.name || 'Пользователь',
-                            photo: data.photo || 'https://via.placeholder.com/50',
-                            email: data.email || ''
-                        });
+        // Загрузка списка пользователей в реальном времени из коллекции users
+        function loadUsersRealtime() {
+            if (unsubscribeUsers) unsubscribeUsers();
+            
+            unsubscribeUsers = db.collection('users')
+                .onSnapshot(snapshot => {
+                    if (!currentUser) return;
+                    
+                    const users = [];
+                    snapshot.forEach(doc => {
+                        const userData = doc.data();
+                        if (userData.uid !== currentUser.uid) {
+                            users.push(userData);
+                        }
+                    });
+                    
+                    if (users.length === 0) {
+                        usersList.innerHTML = '<div class="empty-state">Пока нет других пользователей</div>';
+                        return;
                     }
-                });
-                
-                if (users.size === 0) {
-                    usersList.innerHTML = '<div class="empty-state">Пока нет других пользователей</div>';
-                    return;
-                }
-                
-                usersList.innerHTML = '';
-                users.forEach(user => {
-                    const div = document.createElement('div');
-                    div.className = 'user-item';
-                    div.innerHTML = `
-                        <img class="user-avatar-small" src="${user.photo}" alt="">
-                        <div>
-                            <div style="font-weight: bold;">${user.name}</div>
-                            <div style="font-size: 12px; color: #666;">${user.email}</div>
-                        </div>
-                        <button style="margin-left: auto;" class="start-chat-btn" data-user='${JSON.stringify(user).replace(/'/g, "&apos;")}'>
-                            💬 Написать
-                        </button>
-                    `;
                     
-                    // Добавляем обработчик на кнопку
-                    const btn = div.querySelector('.start-chat-btn');
-                    btn.onclick = (e) => {
-                        e.stopPropagation();
-                        const userData = JSON.parse(btn.dataset.user);
-                        startChat(userData);
-                    };
-                    
-                    usersList.appendChild(div);
+                    usersList.innerHTML = '';
+                    users.forEach(user => {
+                        const div = document.createElement('div');
+                        div.className = 'user-item';
+                        if (currentChatUser && currentChatUser.uid === user.uid) {
+                            div.classList.add('active');
+                        }
+                        div.innerHTML = `
+                            <img class="user-avatar-small" src="${user.photoURL || 'https://via.placeholder.com/50'}" alt="">
+                            <div>
+                                <div style="font-weight: bold;">${user.displayName || 'Пользователь'}</div>
+                                <div style="font-size: 12px; color: #666;">${user.email || ''}</div>
+                            </div>
+                            <button style="margin-left: auto;" class="start-chat-btn">💬 Написать</button>
+                        `;
+                        
+                        const btn = div.querySelector('.start-chat-btn');
+                        btn.onclick = (e) => {
+                            e.stopPropagation();
+                            startChat(user);
+                        };
+                        
+                        usersList.appendChild(div);
+                    });
+                }, error => {
+                    console.error('Ошибка загрузки пользователей:', error);
+                    usersList.innerHTML = '<div class="empty-state">Ошибка загрузки</div>';
                 });
-                
-            } catch (error) {
-                console.error('Ошибка:', error);
-                usersList.innerHTML = '<div class="empty-state">Ошибка загрузки</div>';
-            }
         }
 
         // Начать чат с пользователем
         function startChat(user) {
+            if (currentChatUser && currentChatUser.uid === user.uid) return; // уже открыт
+            
             currentChatUser = user;
             
             // Показываем секцию чата
             chatSection.style.display = 'block';
-            currentChatAvatar.src = user.photo;
-            currentChatName.textContent = 'Чат с ' + user.name;
+            currentChatAvatar.src = user.photoURL || 'https://via.placeholder.com/40';
+            currentChatName.textContent = 'Чат с ' + (user.displayName || 'Пользователем');
+            
+            // Подсветка активного пользователя в списке
+            document.querySelectorAll('.user-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            // Можно найти элемент по data-uid, но для простоты перезагрузим стиль при следующем обновлении списка
             
             // Создаем ID чата
-            const chatId = currentUser.uid < user.id 
-                ? currentUser.uid + '_' + user.id 
-                : user.id + '_' + currentUser.uid;
+            const chatId = currentUser.uid < user.uid 
+                ? currentUser.uid + '_' + user.uid 
+                : user.uid + '_' + currentUser.uid;
             
             // Отписываемся от предыдущего чата
             if (unsubscribeChat) {
@@ -413,7 +493,7 @@
                 .doc(chatId)
                 .collection('messages')
                 .orderBy('timestamp')
-                .onSnapshot((snapshot) => {
+                .onSnapshot(snapshot => {
                     if (snapshot.empty) {
                         messages.innerHTML = '<div class="empty-state">Нет сообщений. Напишите первое!</div>';
                         return;
@@ -422,21 +502,35 @@
                     messages.innerHTML = '';
                     snapshot.forEach(doc => {
                         const msg = doc.data();
-                        const div = document.createElement('div');
-                        div.className = `message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`;
+                        const isSent = msg.senderId === currentUser.uid;
+                        
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+                        
+                        // Аватар (для полученных сообщений берем из данных сообщения или текущего чата)
+                        const avatarUrl = isSent 
+                            ? currentUser.photoURL || 'https://via.placeholder.com/36'
+                            : (msg.senderPhotoURL || currentChatUser.photoURL || 'https://via.placeholder.com/36');
                         
                         const time = msg.timestamp 
                             ? msg.timestamp.toDate().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
                             : '';
                         
-                        div.innerHTML = `
-                            <div>${msg.text}</div>
-                            <div class="message-time">${time}</div>
+                        messageDiv.innerHTML = `
+                            <img class="message-avatar" src="${avatarUrl}" alt="">
+                            <div class="message-content">
+                                <div>${msg.text}</div>
+                                <div class="message-time">${time}</div>
+                            </div>
                         `;
-                        messages.appendChild(div);
+                        
+                        messages.appendChild(messageDiv);
                     });
                     
                     messages.scrollTop = messages.scrollHeight;
+                }, error => {
+                    console.error('Ошибка загрузки сообщений:', error);
+                    messages.innerHTML = '<div class="empty-state">Ошибка загрузки сообщений</div>';
                 });
         }
 
@@ -445,14 +539,14 @@
             const text = messageInput.value.trim();
             
             if (!text || !currentUser || !currentChatUser) {
-                alert('Выберите пользователя и напишите сообщение');
+                showError('Выберите пользователя и напишите сообщение');
                 return;
             }
             
             try {
-                const chatId = currentUser.uid < currentChatUser.id 
-                    ? currentUser.uid + '_' + currentChatUser.id 
-                    : currentChatUser.id + '_' + currentUser.uid;
+                const chatId = currentUser.uid < currentChatUser.uid 
+                    ? currentUser.uid + '_' + currentChatUser.uid 
+                    : currentChatUser.uid + '_' + currentUser.uid;
                 
                 await db.collection('chats')
                     .doc(chatId)
@@ -461,15 +555,16 @@
                         text: text,
                         senderId: currentUser.uid,
                         senderName: currentUser.displayName,
-                        receiverId: currentChatUser.id,
+                        senderPhotoURL: currentUser.photoURL,
+                        receiverId: currentChatUser.uid,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 
                 messageInput.value = '';
                 
             } catch (error) {
-                console.error('Ошибка:', error);
-                alert('Не удалось отправить сообщение');
+                console.error('Ошибка отправки:', error);
+                showError('Не удалось отправить сообщение');
             }
         };
 
@@ -480,12 +575,28 @@
             }
         });
 
+        // Закрыть чат
+        function closeChat() {
+            currentChatUser = null;
+            chatSection.style.display = 'none';
+            if (unsubscribeChat) {
+                unsubscribeChat();
+                unsubscribeChat = null;
+            }
+            // Снимаем подсветку активного пользователя
+            document.querySelectorAll('.user-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        }
+
+        closeChatBtn.onclick = closeChat;
+
         // Создание поста
         createPostBtn.onclick = async () => {
             const text = postInput.value.trim();
             
             if (!text || !currentUser) {
-                alert('Войдите и напишите что-нибудь');
+                showError('Войдите и напишите что-нибудь');
                 return;
             }
             
@@ -503,16 +614,18 @@
                 postInput.value = '';
                 
             } catch (error) {
-                console.error('Ошибка:', error);
-                alert('Не удалось создать пост');
+                console.error('Ошибка создания поста:', error);
+                showError('Не удалось создать пост');
             }
         };
 
-        // Загрузка постов
-        function loadPosts() {
-            db.collection('requests')
+        // Загрузка постов в реальном времени
+        function loadPostsRealtime() {
+            if (unsubscribePosts) unsubscribePosts();
+            
+            unsubscribePosts = db.collection('requests')
                 .orderBy('timestamp', 'desc')
-                .onSnapshot((snapshot) => {
+                .onSnapshot(snapshot => {
                     if (snapshot.empty) {
                         postsList.innerHTML = '<div class="empty-state">Пока нет постов</div>';
                         return;
@@ -525,7 +638,9 @@
                         div.className = 'post';
                         
                         const time = data.timestamp 
-                            ? data.timestamp.toDate().toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                            ? data.timestamp.toDate().toLocaleString('ru-Ru', { 
+                                day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' 
+                              })
                             : '';
                         
                         div.innerHTML = `
@@ -548,7 +663,7 @@
                     document.querySelectorAll('.like-btn').forEach(btn => {
                         btn.onclick = async () => {
                             if (!currentUser) {
-                                alert('Войдите, чтобы ставить лайки');
+                                showError('Войдите, чтобы ставить лайки');
                                 return;
                             }
                             
@@ -560,21 +675,15 @@
                                     likes: likes + 1
                                 });
                             } catch (error) {
-                                console.error('Ошибка:', error);
+                                console.error('Ошибка лайка:', error);
+                                showError('Не удалось поставить лайк');
                             }
                         };
                     });
+                }, error => {
+                    console.error('Ошибка загрузки постов:', error);
+                    postsList.innerHTML = '<div class="empty-state">Ошибка загрузки постов</div>';
                 });
-        }
-
-        // Закрыть чат
-        function closeChat() {
-            currentChatUser = null;
-            chatSection.style.display = 'none';
-            if (unsubscribeChat) {
-                unsubscribeChat();
-                unsubscribeChat = null;
-            }
         }
     </script>
 </body>
