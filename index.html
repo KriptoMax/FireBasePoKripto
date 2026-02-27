@@ -1,3 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Простой чат</title>
+    <style>
+        /* ваши стили */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        /* ... остальные стили ... */
+    </style>
+</head>
+<body>
+    <!-- Авторизация -->
+    <div class="auth-section">
+        <div id="loginBlock">
+            <button id="loginBtn">🔑 Войти через Google</button>
+        </div>
+        <div id="userBlock" style="display: none;">
+            <div class="user-info">
+                <img id="userPhoto" class="user-avatar" src="" alt="">
+                <span id="userName"></span>
+                <button id="logoutBtn">Выйти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Список пользователей -->
+    <div class="users-section">
+        <h2>👥 С кем пообщаться?</h2>
+        <div id="usersList">
+            <div class="empty-state">Загрузка пользователей...</div>
+        </div>
+    </div>
+
+    <!-- Чат -->
+    <div class="chat-section" id="chatSection" style="display: none;">
+        <div class="chat-header" id="chatHeader">
+            <img id="currentChatAvatar" class="user-avatar" src="" alt="">
+            <h3 id="currentChatName"></h3>
+            <button id="closeChatBtn" style="margin-left: auto; background: #6c757d;">✕</button>
+        </div>
+        
+        <div class="messages" id="messages">
+            <!-- Сообщения -->
+        </div>
+        
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Введите сообщение...">
+            <button id="sendBtn">Отправить</button>
+        </div>
+    </div>
+
+    <!-- Посты -->
+    <div class="posts-section">
+        <h2>📝 Общая лента</h2>
+        <div class="post-form">
+            <input type="text" id="postInput" placeholder="Что у вас нового?">
+            <button id="createPostBtn">Опубликовать</button>
+        </div>
+        <div id="postsList">
+            <div class="empty-state">Загрузка постов...</div>
+        </div>
+    </div>
+
+    <div id="errorContainer" style="display: none;" class="error-message"></div>
+
+    <!-- Firebase SDK - ВСЕГДА ПЕРВЫМИ и ТОЛЬКО compat версии -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
     <script>
         // Проверяем, что Firebase загрузился
         if (typeof firebase === 'undefined') {
