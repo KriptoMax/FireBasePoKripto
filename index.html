@@ -3,308 +3,382 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase проект с редактированием и удалением</title>
+    <title>Firebase проект — личные сообщения</title>
     <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
         body {
-            font-family: 'Inter', sans-serif; 
-            background: #f4f7f6; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding: 20px;
+            background: #f0f3f5;
+            display: flex;
+            justify-content: center;
+            padding: 24px 16px;
             margin: 0;
         }
-        .container { 
-            width: 100%; 
-            max-width: 500px; 
-            background: white; 
-            padding: 20px; 
-            border-radius: 12px; 
-            box-shadow: 0 6px 15px rgba(0,0,0,0.05); 
-            margin-bottom: 20px; 
-            box-sizing: border-box;
+        .app-grid {
+            display: flex;
+            gap: 24px;
+            max-width: 1300px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .left-panel {
+            flex: 2;
+            min-width: 320px;
+            max-width: 450px;
+        }
+        .right-panel {
+            flex: 3;
+            min-width: 400px;
+            max-width: 600px;
+        }
+        .card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.06);
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: all 0.2s;
+        }
+        h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-weight: 600;
+            font-size: 1.4rem;
+            color: #1e272e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .user-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            background: #f8fafc;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.15s;
+            border: 2px solid transparent;
+        }
+        .user-row:hover {
+            background: #e9f0f5;
+        }
+        .user-row.selected {
+            background: #dff4ff;
+            border-color: #0984e3;
+        }
+        .user-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #dfe6e9;
+        }
+        .user-info {
+            flex: 1;
+        }
+        .user-name {
+            font-weight: 600;
+            color: #2d3436;
+        }
+        .user-email {
+            font-size: 0.8rem;
+            color: #636e72;
+        }
+        .last-message-preview {
+            font-size: 0.85rem;
+            color: #0984e3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
         }
         .auth-bar {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            flex-wrap: wrap;
         }
-        .user-avatar {
+        .user-avatar-small {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            object-fit: cover;
         }
         .logout-btn {
             background: #ff4757;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-weight: 500;
             cursor: pointer;
+            transition: 0.15s;
         }
         .logout-btn:hover {
             background: #ff6b81;
         }
         button {
-            cursor: pointer;
             border: none;
             background: #0984e3;
             color: white;
             padding: 10px 20px;
-            border-radius: 8px;
+            border-radius: 40px;
             font-size: 14px;
-            margin: 5px 0;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.15s;
         }
-        button:hover {
+        button:hover:not(:disabled) {
             background: #74b9ff;
+            transform: scale(1.02);
         }
         button:disabled {
-            background: #ccc;
+            background: #b2bec3;
             cursor: not-allowed;
         }
         .delete-btn {
             background: #ff4757;
         }
-        .delete-btn:hover {
+        .delete-btn:hover:not(:disabled) {
             background: #ff6b81;
         }
         .edit-btn {
             background: #00b894;
         }
-        .edit-btn:hover {
-            background: #00cec9;
+        input, textarea {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 40px;
+            border: 1px solid #dcdde1;
+            font-size: 14px;
+            margin-bottom: 16px;
+            background: #f5f7fa;
+            transition: 0.15s;
         }
-        input[type="text"], input[type="email"], input[type="file"] { 
-            width: 100%; 
-            padding: 12px; 
-            border-radius: 8px; 
-            border: 1px solid #ddd;
-            box-sizing: border-box; 
-            margin-bottom: 10px;
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #0984e3;
+            background: white;
         }
-        .post { 
-            background: #fff; 
-            border: 1px solid #e0e0e0; 
-            padding: 15px; 
-            margin-top: 15px; 
-            border-radius: 8px; 
-            width: 100%; 
-            max-width: 500px; 
-            box-sizing: border-box;
+        textarea {
+            border-radius: 24px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .chat-messages {
+            max-height: 450px;
+            overflow-y: auto;
+            padding-right: 8px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            padding: 12px 18px;
+            border-radius: 24px;
+            max-width: 80%;
+            word-break: break-word;
+            background: #f1f2f6;
+            align-self: flex-start;
             position: relative;
         }
-        .post-header { 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            margin-bottom: 10px; 
+        .message.own {
+            background: #d3ecff;
+            align-self: flex-end;
         }
-        .post-header img {
-            width: 30px;
-            height: 30px;
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #636e72;
+            margin-bottom: 6px;
+        }
+        .message-header img {
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
         }
-        .post-body { 
-            margin-bottom: 10px; 
+        .message-time {
+            font-size: 0.7rem;
+            color: #95a5a6;
+            margin-left: auto;
         }
-        .post-image {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 8px;
-            margin: 10px 0;
+        .message-image {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 18px;
+            margin: 8px 0 4px;
             cursor: pointer;
+            border: 1px solid #dfe6e9;
         }
-        .post-actions {
+        .chat-input-area {
             display: flex;
             gap: 10px;
-            margin-top: 10px;
+            align-items: center;
+            background: #f5f7fa;
+            border-radius: 60px;
+            padding: 4px 4px 4px 18px;
         }
-        .post-actions button {
+        .chat-input-area input {
+            border: none;
+            background: transparent;
+            margin: 0;
+            padding: 12px 0;
             flex: 1;
-            padding: 8px;
-            font-size: 12px;
         }
-        .like-btn { 
-            cursor: pointer; 
-            border: none; 
-            background: #ff9bfa; 
-            padding: 5px 12px; 
-            border-radius: 20px; 
-            margin-top: 10px; 
-            width: auto;
+        .chat-input-area input:focus {
+            background: transparent;
         }
-        .like-btn:hover {
-            background: #fd79a8;
+        .chat-actions {
+            display: flex;
+            gap: 8px;
         }
-        .time { 
-            font-size: 11px; 
-            color: #999; 
-            margin-left: auto; 
+        .icon-btn {
+            background: transparent;
+            color: #2d3436;
+            padding: 10px;
+            border-radius: 50%;
+            font-size: 1.4rem;
+            line-height: 1;
         }
-        #loginBtn {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-        }
-        #userInfo {
-            display: none;
-            width: 100%;
-        }
-        #messageForm {
-            display: none;
-        }
-        .image-preview {
-            max-width: 100%;
-            max-height: 200px;
-            margin: 10px 0;
-            border-radius: 8px;
-            display: none;
-        }
-        .upload-progress {
-            width: 100%;
-            height: 20px;
-            background: #f0f0f0;
-            border-radius: 10px;
-            margin: 10px 0;
-            display: none;
-        }
-        .progress-bar {
-            width: 0%;
-            height: 100%;
-            background: #0984e3;
-            border-radius: 10px;
-            transition: width 0.3s;
+        .icon-btn:hover {
+            background: rgba(0,0,0,0.05);
         }
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.9);
-            overflow: auto;
+            z-index: 2000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
         }
-        .modal-content {
-            margin: auto;
-            display: block;
+        .modal img {
             max-width: 90%;
             max-height: 90%;
-            margin-top: 20px;
+            border-radius: 20px;
         }
         .close {
             position: absolute;
-            top: 15px;
-            right: 35px;
-            color: #f1f1f1;
+            top: 20px; right: 30px;
             font-size: 40px;
-            font-weight: bold;
+            color: white;
             cursor: pointer;
         }
-        .close:hover {
-            color: #bbb;
-        }
-        .edit-form {
-            display: none;
-            margin-top: 10px;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 8px;
-        }
-        .confirm-dialog {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            z-index: 1001;
-            display: none;
-            max-width: 300px;
+        .empty-chat {
             text-align: center;
+            color: #aaa;
+            padding: 40px 20px;
+            background: #fafafa;
+            border-radius: 30px;
         }
-        .confirm-dialog button {
-            margin: 10px;
-            min-width: 80px;
-        }
-        .overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
+        .upload-progress {
             width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin: 8px 0;
+            display: none;
+        }
+        .progress-bar {
             height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
+            background: #0984e3;
+            border-radius: 10px;
+            width: 0%;
         }
     </style>
 </head>
 <body>
-    <!-- Модальное окно для просмотра изображений -->
-    <div id="imageModal" class="modal">
-        <span class="close">&times;</span>
-        <img class="modal-content" id="modalImage">
-    </div>
+<div class="app-grid">
+    <!-- Левая колонка: профиль, пользователи -->
+    <div class="left-panel">
+        <!-- Авторизация -->
+        <div class="card">
+            <div id="authorSection">
+                <button id="loginBtn" style="width:100%">🚀 Войти через Google</button>
+                <div id="userInfo" class="auth-bar" style="display: none;">
+                    <img id="userPhoto" class="user-avatar-small" src="" alt="">
+                    <span id="userName"></span>
+                    <button id="logoutBtn" class="logout-btn">Выйти</button>
+                </div>
+            </div>
+        </div>
 
-    <!-- Диалог подтверждения удаления -->
-    <div class="overlay" id="overlay"></div>
-    <div class="confirm-dialog" id="confirmDialog">
-        <p id="confirmMessage">Вы уверены, что хотите удалить этот пост?</p>
-        <button id="confirmYes" class="delete-btn">Да, удалить</button>
-        <button id="confirmNo">Отмена</button>
-    </div>
+        <!-- Список пользователей (кроме себя) -->
+        <div class="card">
+            <h3>👥 Собеседники</h3>
+            <div id="usersList" style="max-height: 400px; overflow-y: auto;">
+                <p style="color: #aaa; text-align: center;">Загрузка...</p>
+            </div>
+        </div>
 
-    <!-- Секция авторизации -->
-    <div class="container">
-        <div id="authorSection">
-            <button id="loginBtn">Войти через Google</button>
-            <div id="userInfo" class="auth-bar">
-                <img id="userPhoto" class="user-avatar" src="" alt="Avatar">
-                <span id="userName"></span>
-                <button id="logoutBtn" class="logout-btn">Выйти</button>
+        <!-- Мои посты (лента) – можно оставить как общая лента, но для приватности сделаем "Мои записи" -->
+        <div class="card">
+            <h3>📝 Мои последние посты</h3>
+            <div id="myFeed" style="max-height: 250px; overflow-y: auto; font-size: 0.9rem;">
+                <p style="color: #aaa;">Войдите, чтобы увидеть</p>
             </div>
         </div>
     </div>
 
-    <!-- Форма отправки сообщения -->
-    <div id="messageForm" class="container">
-        <h3>Создать запись</h3>
-        <input type="text" id="name" placeholder="Имя" readonly>
-        <input type="email" id="email" placeholder="Email" readonly>
-        
-        <!-- Поле для загрузки изображения -->
-        <input type="file" id="imageInput" accept="image/*">
-        <div class="image-preview" id="imagePreview">
-            <img id="preview" class="image-preview" alt="Preview">
+    <!-- Правая колонка: личный чат с выбранным пользователем -->
+    <div class="right-panel">
+        <div class="card" style="padding: 20px; display: flex; flex-direction: column; height: 80vh; max-height: 700px;">
+            <h3 style="margin-bottom: 8px;">💬 Личный чат 
+                <span id="chatWithName" style="font-size: 1rem; font-weight: normal; background: #ecf0f1; padding: 5px 15px; border-radius: 30px;">выберите собеседника</span>
+            </h3>
+            
+            <!-- Область сообщений -->
+            <div id="privateMessagesContainer" class="chat-messages" style="flex:1;">
+                <div class="empty-chat">👈 Выберите пользователя слева</div>
+            </div>
+
+            <!-- Форма отправки личного сообщения (доступна только при выбранном собеседнике) -->
+            <div id="privateMessageForm" style="display: none;">
+                <div class="chat-input-area">
+                    <input type="text" id="privateContent" placeholder="Текст сообщения...">
+                    <div class="chat-actions">
+                        <label class="icon-btn" style="cursor:pointer;">📎
+                            <input type="file" id="privateImageInput" accept="image/*" style="display:none;">
+                        </label>
+                        <button id="sendPrivateBtn" style="border-radius: 40px; padding: 10px 20px;">Отправить</button>
+                    </div>
+                </div>
+                <!-- Прогресс загрузки -->
+                <div class="upload-progress" id="privateUploadProgress">
+                    <div class="progress-bar" id="privateProgressBar"></div>
+                </div>
+                <!-- Предпросмотр (минимальный) -->
+                <div id="privatePreview" style="display: none; margin-top: 8px;">
+                    <img id="privatePreviewImg" style="max-height: 60px; border-radius: 12px;" alt="preview">
+                </div>
+            </div>
         </div>
-        
-        <!-- Прогресс загрузки -->
-        <div class="upload-progress" id="uploadProgress">
-            <div class="progress-bar" id="progressBar"></div>
-        </div>
-        
-        <input type="text" id="content" placeholder="Текст сообщения">
-        <button id="submitBtn" disabled>Отправить</button>
     </div>
+</div>
 
-    <!-- Лента сообщений -->
-    <div id="feed" class="container">
-        <h3>Лента сообщений</h3>
-        <div id="messages"></div>
-    </div>
+<!-- Модальное окно для фото -->
+<div id="imageModal" class="modal">
+    <span class="close">&times;</span>
+    <img id="modalImage" src="">
+</div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
 
-    <script>
-        // Firebase конфигурация
+<script>
+    (function() {
+        // Конфиг Firebase (ваш)
         const firebaseConfig = {
             apiKey: "AIzaSyDBuAkXAyQUA_rnHVLX7jJ8Nkf1nPi9T_g",
             authDomain: "kriptocompany-75fca.firebaseapp.com",
@@ -314,465 +388,345 @@
             appId: "1:1093847911427:web:13b9847675f4e2d84a1236",
             measurementId: "G-D1B9MHTQQ7"
         };
-
-        // Инициализация Firebase
         firebase.initializeApp(firebaseConfig);
-        
-        // Получаем сервисы
         const auth = firebase.auth();
         const db = firebase.firestore();
         const storage = firebase.storage();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // DOM элементы
-        const loginBtn = document.getElementById("loginBtn");
-        const logoutBtn = document.getElementById("logoutBtn");
-        const userInfo = document.getElementById("userInfo");
-        const messageForm = document.getElementById("messageForm");
-        const submitBtn = document.getElementById("submitBtn");
-        const contentInput = document.getElementById("content");
-        const nameInput = document.getElementById("name");
-        const emailInput = document.getElementById("email");
-        const userPhoto = document.getElementById("userPhoto");
-        const userName = document.getElementById("userName");
-        const messagesDiv = document.getElementById("messages");
-        const imageInput = document.getElementById("imageInput");
-        const preview = document.getElementById("preview");
-        const imagePreview = document.getElementById("imagePreview");
-        const uploadProgress = document.getElementById("uploadProgress");
-        const progressBar = document.getElementById("progressBar");
-        
+        // Элементы DOM
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userInfo = document.getElementById('userInfo');
+        const userPhoto = document.getElementById('userPhoto');
+        const userName = document.getElementById('userName');
+
+        // Список пользователей и чат
+        const usersListDiv = document.getElementById('usersList');
+        const privateMessagesDiv = document.getElementById('privateMessagesContainer');
+        const privateMessageForm = document.getElementById('privateMessageForm');
+        const privateContent = document.getElementById('privateContent');
+        const sendPrivateBtn = document.getElementById('sendPrivateBtn');
+        const privateImageInput = document.getElementById('privateImageInput');
+        const privatePreview = document.getElementById('privatePreview');
+        const privatePreviewImg = document.getElementById('privatePreviewImg');
+        const privateUploadProgress = document.getElementById('privateUploadProgress');
+        const privateProgressBar = document.getElementById('privateProgressBar');
+        const chatWithName = document.getElementById('chatWithName');
+        const myFeedDiv = document.getElementById('myFeed');
+
         // Модальное окно
-        const modal = document.getElementById("imageModal");
-        const modalImg = document.getElementById("modalImage");
-        const closeBtn = document.getElementsByClassName("close")[0];
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        const closeModal = document.querySelector('.close');
+        closeModal.onclick = () => modal.style.display = 'none';
+        window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+        window.openModal = (url) => { modal.style.display = 'flex'; modalImg.src = url; };
 
-        // Диалог подтверждения
-        const confirmDialog = document.getElementById("confirmDialog");
-        const overlay = document.getElementById("overlay");
-        const confirmYes = document.getElementById("confirmYes");
-        const confirmNo = document.getElementById("confirmNo");
-        const confirmMessage = document.getElementById("confirmMessage");
+        // Состояние
+        let currentUser = null;
+        let selectedUserId = null;          // ID выбранного собеседника
+        let selectedUserData = null;         // { name, photo, email }
+        let unsubscribeMessages = null;
 
-        // Переменные для хранения состояния
-        let uploadedImageUrl = null;
-        let pendingDelete = null; // Для хранения ID поста на удаление
+        // Аутентификация
+        loginBtn.onclick = () => auth.signInWithPopup(provider);
+        logoutBtn.onclick = () => auth.signOut();
+
+        auth.onAuthStateChanged(async (user) => {
+            currentUser = user;
+            if (user) {
+                loginBtn.style.display = 'none';
+                userInfo.style.display = 'flex';
+                userName.innerText = user.displayName || 'Пользователь';
+                userPhoto.src = user.photoURL || 'https://via.placeholder.com/40';
+                // Сброс выбора при входе/выходе
+                if (selectedUserId) {
+                    unsubscribeMessages?.();
+                    selectedUserId = null;
+                    privateMessageForm.style.display = 'none';
+                    chatWithName.innerText = 'выберите собеседника';
+                }
+                loadUsersExceptMe(user.uid);
+                loadMyPosts(user.uid);
+            } else {
+                loginBtn.style.display = 'block';
+                userInfo.style.display = 'none';
+                usersListDiv.innerHTML = '<p style="color:#aaa; text-align:center;">Войдите, чтобы увидеть пользователей</p>';
+                privateMessagesDiv.innerHTML = '<div class="empty-chat">Войдите в аккаунт</div>';
+                privateMessageForm.style.display = 'none';
+                chatWithName.innerText = 'выберите собеседника';
+                if (unsubscribeMessages) unsubscribeMessages();
+                unsubscribeMessages = null;
+                myFeedDiv.innerHTML = '<p style="color:#aaa;">Войдите, чтобы увидеть</p>';
+                selectedUserId = null;
+            }
+        });
+
+        // Загрузить всех пользователей, кроме текущего
+        async function loadUsersExceptMe(uid) {
+            usersListDiv.innerHTML = '<p style="color:#aaa; text-align:center;">Загрузка...</p>';
+            try {
+                // Собираем уникальных пользователей из коллекции "requests" (посты)
+                const snapshot = await db.collection('requests').get();
+                const usersMap = new Map(); // key: email (или uid если есть)
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.userId && data.userId !== uid && !usersMap.has(data.userId)) {
+                        usersMap.set(data.userId, {
+                            userId: data.userId,
+                            name: data.name || 'Аноним',
+                            email: data.email || '',
+                            photo: data.photo || 'https://via.placeholder.com/40',
+                        });
+                    }
+                });
+                // Превращаем в массив и сортируем по имени
+                const users = Array.from(usersMap.values()).sort((a,b) => a.name.localeCompare(b.name));
+                if (users.length === 0) {
+                    usersListDiv.innerHTML = '<p style="color:#aaa; text-align:center;">Нет других пользователей</p>';
+                    return;
+                }
+                renderUsersList(users);
+            } catch (e) {
+                console.error('Ошибка загрузки пользователей', e);
+                usersListDiv.innerHTML = '<p style="color:red;">Ошибка загрузки</p>';
+            }
+        }
+
+        function renderUsersList(users) {
+            usersListDiv.innerHTML = '';
+            users.forEach(user => {
+                const row = document.createElement('div');
+                row.className = `user-row ${selectedUserId === user.userId ? 'selected' : ''}`;
+                row.setAttribute('data-userid', user.userId);
+                row.innerHTML = `
+                    <img class="user-avatar" src="${user.photo}" alt="">
+                    <div class="user-info">
+                        <div class="user-name">${user.name}</div>
+                        <div class="user-email">${user.email || 'Нет email'}</div>
+                    </div>
+                `;
+                row.addEventListener('click', () => selectUser(user.userId, user));
+                usersListDiv.appendChild(row);
+            });
+        }
+
+        // Выбор собеседника
+        function selectUser(userId, userData) {
+            if (!currentUser) return;
+            if (selectedUserId === userId) return;
+
+            // Отписываемся от предыдущего чата
+            if (unsubscribeMessages) unsubscribeMessages();
+
+            selectedUserId = userId;
+            selectedUserData = userData;
+            chatWithName.innerText = `${userData.name}`;
+
+            // Подсветка
+            document.querySelectorAll('.user-row').forEach(row => {
+                row.classList.toggle('selected', row.dataset.userid === userId);
+            });
+
+            // Показать форму
+            privateMessageForm.style.display = 'block';
+
+            // Загружаем сообщения между текущим и выбранным
+            loadPrivateMessages(currentUser.uid, userId);
+
+            // Очистить предпросмотр и инпуты
+            privateContent.value = '';
+            privateImageInput.value = '';
+            privatePreview.style.display = 'none';
+        }
+
+        // Функция загрузки сообщений из подколлекции "privateMessages"
+        function loadPrivateMessages(uid1, uid2) {
+            // Сортируем ID, чтобы создать стабильный идентификатор чата
+            const chatId = uid1 < uid2 ? uid1 + '_' + uid2 : uid2 + '_' + uid1;
+            console.log('Загружаем чат:', chatId);
+
+            const messagesQuery = db.collection('privateChats').doc(chatId)
+                .collection('messages')
+                .orderBy('timestamp', 'asc');
+
+            unsubscribeMessages = messagesQuery.onSnapshot(snapshot => {
+                if (!selectedUserId) return; // если уже не выбран
+                privateMessagesDiv.innerHTML = '';
+
+                if (snapshot.empty) {
+                    privateMessagesDiv.innerHTML = '<div class="empty-chat">Напишите первое сообщение 👋</div>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const msg = doc.data();
+                    const isOwn = msg.senderId === currentUser.uid;
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `message ${isOwn ? 'own' : ''}`;
+
+                    let time = '';
+                    if (msg.timestamp) {
+                        const d = msg.timestamp.toDate();
+                        time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                    } else {
+                        time = '...';
+                    }
+
+                    let imageHtml = '';
+                    if (msg.imageUrl) {
+                        imageHtml = `<img src="${msg.imageUrl}" class="message-image" onclick="openModal('${msg.imageUrl}')">`;
+                    }
+
+                    msgDiv.innerHTML = `
+                        <div class="message-header">
+                            <img src="${msg.senderPhoto || 'https://via.placeholder.com/22'}" alt="">
+                            <span>${msg.senderName || 'Пользователь'}</span>
+                            <span class="message-time">${time}</span>
+                        </div>
+                        <div>${msg.text || ''}</div>
+                        ${imageHtml}
+                    `;
+                    privateMessagesDiv.appendChild(msgDiv);
+                });
+                // Скролл вниз
+                privateMessagesDiv.scrollTop = privateMessagesDiv.scrollHeight;
+            }, err => {
+                console.error('Ошибка загрузки сообщений:', err);
+                privateMessagesDiv.innerHTML = '<p style="color:red;">Ошибка загрузки чата</p>';
+            });
+        }
 
         // Предпросмотр изображения
-        imageInput.addEventListener('change', (e) => {
+        privateImageInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    preview.src = e.target.result;
-                    imagePreview.style.display = 'block';
+                    privatePreviewImg.src = e.target.result;
+                    privatePreview.style.display = 'block';
                 };
                 reader.readAsDataURL(file);
             } else {
-                imagePreview.style.display = 'none';
-                preview.src = '';
+                privatePreview.style.display = 'none';
             }
         });
 
-        // Вход через Google
-        loginBtn.onclick = () => {
-            auth.signInWithPopup(provider)
-                .then((result) => {
-                    console.log("Успешный вход:", result.user.email);
-                })
-                .catch(error => {
-                    console.error("Ошибка входа:", error);
-                    alert("Ошибка входа: " + error.message);
-                });
-        };
-
-        // Выход
-        logoutBtn.onclick = () => {
-            auth.signOut()
-                .then(() => {
-                    console.log("Выход выполнен");
-                })
-                .catch(error => {
-                    console.error("Ошибка выхода:", error);
-                });
-        };
-
-        // Отслеживание состояния аутентификации
-        auth.onAuthStateChanged((user) => {
-            console.log("Auth state changed:", user ? "Вошел" : "Вышел");
-            
-            if (user) {
-                loginBtn.style.display = "none";
-                userInfo.style.display = "flex";
-                messageForm.style.display = "block";
-                submitBtn.disabled = false;
-                
-                userName.innerText = user.displayName || "Без имени";
-                userPhoto.src = user.photoURL || "https://via.placeholder.com/40";
-                nameInput.value = user.displayName || "";
-                emailInput.value = user.email || "";
-            } else {
-                loginBtn.style.display = "block";
-                userInfo.style.display = "none";
-                messageForm.style.display = "none";
-                submitBtn.disabled = true;
-                uploadedImageUrl = null;
-                imageInput.value = '';
-                imagePreview.style.display = 'none';
+        // Отправка личного сообщения
+        sendPrivateBtn.onclick = async () => {
+            if (!currentUser || !selectedUserId) {
+                alert('Выберите собеседника');
+                return;
             }
-        });
-
-        // Функция загрузки изображения в Storage
-        async function uploadImage(file) {
-            if (!file) return null;
-            
-            // Создаем уникальное имя файла
-            const timestamp = Date.now();
-            const fileName = `${auth.currentUser.uid}_${timestamp}_${file.name}`;
-            const storageRef = storage.ref(`images/${fileName}`);
-            
-            // Показываем прогресс бар
-            uploadProgress.style.display = 'block';
-            progressBar.style.width = '0%';
-            
-            try {
-                // Загружаем файл с отслеживанием прогресса
-                const uploadTask = storageRef.put(file);
-                
-                return new Promise((resolve, reject) => {
-                    uploadTask.on('state_changed',
-                        (snapshot) => {
-                            // Прогресс загрузки
-                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                            progressBar.style.width = progress + '%';
-                            console.log('Загрузка: ' + progress + '%');
-                        },
-                        (error) => {
-                            // Ошибка
-                            console.error("Ошибка загрузки:", error);
-                            uploadProgress.style.display = 'none';
-                            reject(error);
-                        },
-                        async () => {
-                            // Успешно загружено - получаем URL
-                            const downloadUrl = await uploadTask.snapshot.ref.getDownloadURL();
-                            uploadProgress.style.display = 'none';
-                            resolve(downloadUrl);
-                        }
-                    );
-                });
-            } catch (error) {
-                console.error("Ошибка при загрузке:", error);
-                uploadProgress.style.display = 'none';
-                throw error;
-            }
-        }
-
-        // Функция удаления изображения из Storage
-        async function deleteImage(imageUrl) {
-            if (!imageUrl) return;
-            
-            try {
-                // Создаем ссылку на файл из URL
-                const imageRef = storage.refFromURL(imageUrl);
-                await imageRef.delete();
-                console.log("Изображение удалено из Storage");
-            } catch (error) {
-                console.error("Ошибка при удалении изображения:", error);
-                // Не прерываем удаление поста, если не удалось удалить фото
-            }
-        }
-
-        // Функция для открытия формы редактирования
-        function showEditForm(postId, currentText, currentImageUrl) {
-            // Создаем форму редактирования, если её нет
-            let editForm = document.getElementById(`edit-form-${postId}`);
-            
-            if (!editForm) {
-                const post = document.querySelector(`[data-post-id="${postId}"]`);
-                if (!post) return;
-                
-                editForm = document.createElement('div');
-                editForm.id = `edit-form-${postId}`;
-                editForm.className = 'edit-form';
-                editForm.innerHTML = `
-                    <textarea id="edit-text-${postId}" class="edit-text" placeholder="Редактировать текст..." rows="3">${currentText}</textarea>
-                    <input type="file" id="edit-image-${postId}" accept="image/*">
-                    <div class="edit-actions">
-                        <button onclick="saveEdit('${postId}')" class="edit-btn">Сохранить</button>
-                        <button onclick="cancelEdit('${postId}')">Отмена</button>
-                    </div>
-                `;
-                post.appendChild(editForm);
-            }
-            
-            editForm.style.display = 'block';
-        }
-
-        // Функция сохранения редактирования
-        window.saveEdit = async (postId) => {
-            const newText = document.getElementById(`edit-text-${postId}`).value.trim();
-            const imageFile = document.getElementById(`edit-image-${postId}`).files[0];
-            
-            if (!newText && !imageFile) {
-                alert("Введите текст или выберите изображение");
+            const text = privateContent.value.trim();
+            const file = privateImageInput.files[0];
+            if (!text && !file) {
+                alert('Введите текст или выберите изображение');
                 return;
             }
 
             try {
+                sendPrivateBtn.disabled = true;
+                sendPrivateBtn.innerText = 'Отправка...';
+
                 let imageUrl = null;
-                
-                // Загружаем новое изображение, если выбрано
-                if (imageFile) {
-                    imageUrl = await uploadImage(imageFile);
-                }
-                
-                // Обновляем документ в Firestore
-                const updateData = {
-                    text: newText || ''
-                };
-                
-                if (imageUrl) {
-                    updateData.imageUrl = imageUrl;
-                }
-                
-                await db.collection("requests").doc(postId).update(updateData);
-                
-                // Скрываем форму редактирования
-                document.getElementById(`edit-form-${postId}`).style.display = 'none';
-                
-                console.log("Пост обновлен успешно");
-            } catch (error) {
-                console.error("Ошибка при редактировании:", error);
-                alert("Ошибка: " + error.message);
-            }
-        };
+                if (file) {
+                    // Загрузка картинки
+                    privateUploadProgress.style.display = 'block';
+                    privateProgressBar.style.width = '0%';
 
-        // Функция отмены редактирования
-        window.cancelEdit = (postId) => {
-            document.getElementById(`edit-form-${postId}`).style.display = 'none';
-        };
-
-        // Функция подтверждения удаления
-        window.confirmDelete = (postId, hasImage) => {
-            pendingDelete = { postId, hasImage };
-            confirmMessage.textContent = "Вы уверены, что хотите удалить этот пост?";
-            confirmDialog.style.display = 'block';
-            overlay.style.display = 'block';
-        };
-
-        // Обработчик подтверждения удаления
-        confirmYes.onclick = async () => {
-            if (!pendingDelete) return;
-            
-            const { postId, hasImage } = pendingDelete;
-            
-            try {
-                // Сначала получаем данные поста, чтобы узнать URL изображения
-                if (hasImage) {
-                    const postDoc = await db.collection("requests").doc(postId).get();
-                    const postData = postDoc.data();
+                    const timestamp = Date.now();
+                    const fileName = `private/${currentUser.uid}_${timestamp}_${file.name}`;
+                    const storageRef = storage.ref(fileName);
                     
-                    if (postData.imageUrl) {
-                        await deleteImage(postData.imageUrl);
-                    }
+                    await new Promise((resolve, reject) => {
+                        const task = storageRef.put(file);
+                        task.on('state_changed',
+                            snap => {
+                                const percent = (snap.bytesTransferred / snap.totalBytes) * 100;
+                                privateProgressBar.style.width = percent + '%';
+                            },
+                            reject,
+                            async () => {
+                                imageUrl = await task.snapshot.ref.getDownloadURL();
+                                resolve();
+                            }
+                        );
+                    });
+                    privateUploadProgress.style.display = 'none';
                 }
-                
-                // Удаляем документ из Firestore
-                await db.collection("requests").doc(postId).delete();
-                
-                console.log("Пост удален успешно");
-            } catch (error) {
-                console.error("Ошибка при удалении:", error);
-                alert("Ошибка: " + error.message);
-            } finally {
-                // Закрываем диалог
-                confirmDialog.style.display = 'none';
-                overlay.style.display = 'none';
-                pendingDelete = null;
-            }
-        };
 
-        // Обработчик отмены удаления
-        confirmNo.onclick = () => {
-            confirmDialog.style.display = 'none';
-            overlay.style.display = 'none';
-            pendingDelete = null;
-        };
+                // Создаем ID чата
+                const uid1 = currentUser.uid;
+                const uid2 = selectedUserId;
+                const chatId = uid1 < uid2 ? uid1 + '_' + uid2 : uid2 + '_' + uid1;
 
-        // Отправка сообщения с изображением
-        submitBtn.onclick = async () => {
-            const content = contentInput.value.trim();
-            const imageFile = imageInput.files[0];
-            
-            if (!content && !imageFile) {
-                alert("Введите текст или выберите изображение");
-                return;
-            }
+                // Сохраняем сообщение
+                await db.collection('privateChats').doc(chatId)
+                    .collection('messages')
+                    .add({
+                        senderId: currentUser.uid,
+                        senderName: currentUser.displayName || 'Я',
+                        senderPhoto: currentUser.photoURL || null,
+                        receiverId: selectedUserId,
+                        text: text || '',
+                        imageUrl: imageUrl,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
 
-            const user = auth.currentUser;
-            if (!user) {
-                alert("Необходимо войти в систему");
-                return;
-            }
+                // Очистить форму
+                privateContent.value = '';
+                privateImageInput.value = '';
+                privatePreview.style.display = 'none';
 
-            try {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Отправка...';
-                
-                let imageUrl = null;
-                
-                // Загружаем изображение, если выбрано
-                if (imageFile) {
-                    imageUrl = await uploadImage(imageFile);
-                }
-                
-                // Создаем документ в Firestore
-                await db.collection("requests").add({
-                    name: user.displayName,
-                    email: user.email,
-                    photo: user.photoURL,
-                    text: content || '',
-                    imageUrl: imageUrl,
-                    likes: 0,
-                    userId: user.uid, // Сохраняем ID пользователя для проверки прав
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                // Очищаем форму
-                contentInput.value = '';
-                imageInput.value = '';
-                imagePreview.style.display = 'none';
-                preview.src = '';
-                uploadedImageUrl = null;
-                
-                console.log("Сообщение отправлено успешно");
             } catch (e) {
-                console.error("Ошибка отправки:", e);
-                alert("Ошибка: " + e.message);
+                console.error('Ошибка отправки личного сообщения:', e);
+                alert('Ошибка: ' + e.message);
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Отправить';
+                sendPrivateBtn.disabled = false;
+                sendPrivateBtn.innerText = 'Отправить';
+                privateUploadProgress.style.display = 'none';
             }
         };
 
-        // Загрузка сообщений в реальном времени
-        db.collection("requests")
-            .orderBy("timestamp", "desc")
-            .onSnapshot((snapshot) => {
-                console.log("Получено сообщений:", snapshot.size);
-                messagesDiv.innerHTML = "";
-                
-                if (snapshot.empty) {
-                    messagesDiv.innerHTML = "<p>Пока нет сообщений</p>";
-                    return;
-                }
-                
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const post = document.createElement("div");
-                    post.className = "post";
-                    post.setAttribute("data-post-id", doc.id);
-                    
-                    // Форматирование времени
-                    let timeText = "только что";
-                    if (data.timestamp) {
-                        const date = data.timestamp.toDate();
-                        timeText = date.toLocaleTimeString("ru-RU", {
-                            hour: '2-digit', 
-                            minute: '2-digit'
-                        });
-                    }
-                    
-                    // Создаем HTML для поста
-                    let imageHtml = '';
-                    if (data.imageUrl) {
-                        imageHtml = `<img src="${data.imageUrl}" class="post-image" onclick="openModal('${data.imageUrl}')">`;
-                    }
-                    
-                    // Проверяем, является ли текущий пользователь автором поста
-                    const isAuthor = auth.currentUser && data.userId === auth.currentUser.uid;
-                    
-                    // Создаем кнопки действий только для автора
-                    let actionButtons = '';
-                    if (isAuthor) {
-                        actionButtons = `
-                            <div class="post-actions">
-                                <button onclick="showEditForm('${doc.id}', '${data.text || ''}', '${data.imageUrl || ''}')" class="edit-btn">
-                                    ✏️ Редактировать
-                                </button>
-                                <button onclick="confirmDelete('${doc.id}', ${!!data.imageUrl})" class="delete-btn">
-                                    🗑️ Удалить
-                                </button>
-                            </div>
-                        `;
-                    }
-                    
-                    post.innerHTML = `
-                        <div class="post-header">
-                            <img src="${data.photo || 'https://via.placeholder.com/30'}" alt="avatar">
-                            <strong>${data.name || 'Аноним'}</strong>
-                            <span class="time">${timeText}</span>
-                        </div>
-                        <div class="post-body">
-                            <p>${data.text || ''}</p>
-                            ${imageHtml}
-                        </div>
-                        <button class="like-btn" data-id="${doc.id}" data-likes="${data.likes || 0}">
-                            ❤️ ${data.likes || 0}
-                        </button>
-                        ${actionButtons}
-                    `;
-                    
-                    messagesDiv.appendChild(post);
-                });
+        // Загрузка моих постов (из requests) для отображения в левой колонке
+        async function loadMyPosts(uid) {
+            const snapshot = await db.collection('requests')
+                .where('userId', '==', uid)
+                .orderBy('timestamp', 'desc')
+                .limit(5)
+                .get();
 
-                // Добавляем обработчики для кнопок лайков
-                document.querySelectorAll('.like-btn').forEach(btn => {
-                    btn.onclick = async (e) => {
-                        e.preventDefault();
-                        
-                        if (!auth.currentUser) {
-                            alert("Войдите, чтобы ставить лайки");
-                            return;
-                        }
-
-                        const id = btn.dataset.id;
-                        const currentLikes = parseInt(btn.dataset.likes) || 0;
-                        
-                        try {
-                            await db.collection("requests").doc(id).update({
-                                likes: currentLikes + 1
-                            });
-                            console.log("Лайк поставлен");
-                        } catch (error) {
-                            console.error("Ошибка при лайке:", error);
-                            alert("Ошибка: " + error.message);
-                        }
-                    };
-                });
-            }, (error) => {
-                console.error("Ошибка загрузки сообщений:", error);
-                messagesDiv.innerHTML = "<p>Ошибка загрузки сообщений</p>";
+            if (snapshot.empty) {
+                myFeedDiv.innerHTML = '<p style="color:#aaa;">У вас пока нет постов</p>';
+                return;
+            }
+            let html = '';
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const text = data.text ? (data.text.substring(0, 30) + '...') : '📷 Фото';
+                html += `<div style="padding:8px 0; border-bottom:1px solid #ecf0f1;">🖊️ ${text}</div>`;
             });
+            myFeedDiv.innerHTML = html;
+        }
 
-        // Функция для открытия модального окна
-        window.openModal = (imageUrl) => {
-            modal.style.display = "block";
-            modalImg.src = imageUrl;
-        };
-
-        // Закрытие модального окна
-        closeBtn.onclick = () => {
-            modal.style.display = "none";
-        };
-
-        // Закрытие по клику вне изображения
-        window.onclick = (event) => {
-            if (event.target == modal) {
-                modal.style.display = "none";
+        // Дополнительно: слушаем новых пользователей (но для простоты используем requests)
+        // Чтобы обновлять список при добавлении новых постов
+        db.collection('requests').onSnapshot(snapshot => {
+            if (currentUser) {
+                loadUsersExceptMe(currentUser.uid);
+                loadMyPosts(currentUser.uid);
             }
+        });
+
+        // Также слушаем изменения в приватных сообщениях, но они уже через onSnapshot выше.
+        // Глобальные функции для модалки
+        window.openModal = (url) => {
+            modal.style.display = 'flex';
+            modalImg.src = url;
         };
-    </script>
+    })();
+</script>
 </body>
 </html>
